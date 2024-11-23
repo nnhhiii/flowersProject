@@ -172,10 +172,6 @@ def create_resnet_model(input_shape=(224, 224, 3), num_classes=5):
     return model
 
 
-# 5. Mô hình Inception thủ công (Inception block)
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, AveragePooling2D, Flatten, Dense, Dropout, BatchNormalization, Concatenate
-from tensorflow.keras.optimizers import Adam
 
 def create_inception_model(input_shape=(224, 224, 3), num_classes=5):
     input_layer = Input(shape=input_shape)
