@@ -173,34 +173,65 @@ def create_resnet_model(input_shape=(224, 224, 3), num_classes=5):
 
 
 # 5. Mô hình Inception thủ công (Inception block)
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, AveragePooling2D, Flatten, Dense, Dropout, BatchNormalization, Concatenate
+from tensorflow.keras.optimizers import Adam
+
 def create_inception_model(input_shape=(224, 224, 3), num_classes=5):
     input_layer = Input(shape=input_shape)
 
-    def inception_block(x, filters):
-        branch1x1 = Conv2D(filters, (1, 1), activation='relu', padding='same')(x)
+    # Khối Inception
+    def inception_block(x, filters_1x1, filters_3x3, filters_5x5, filters_pool):
+        # Lớp Convolution 1x1
+        conv_1x1 = Conv2D(filters_1x1, (1, 1), padding='same', activation='relu')(x)
+        conv_1x1 = BatchNormalization()(conv_1x1)  # Chuẩn hóa batch
 
-        branch3x3 = Conv2D(filters, (3, 3), activation='relu', padding='same')(x)
+        # Lớp Convolution 3x3
+        conv_3x3 = Conv2D(filters_3x3, (3, 3), padding='same', activation='relu')(x)
+        conv_3x3 = BatchNormalization()(conv_3x3)  # Chuẩn hóa batch
 
-        branch5x5 = Conv2D(filters, (5, 5), activation='relu', padding='same')(x)
+        # Lớp Convolution 5x5
+        conv_5x5 = Conv2D(filters_5x5, (5, 5), padding='same', activation='relu')(x)
+        conv_5x5 = BatchNormalization()(conv_5x5)  # Chuẩn hóa batch
 
-        branch_pool = AveragePooling2D(pool_size=(3, 3), strides=(1, 1), padding='same')(x)
-        branch_pool = Conv2D(filters, (1, 1), activation='relu', padding='same')(branch_pool)
+        # MaxPooling kết hợp với lớp Convolution 1x1
+        pool = MaxPooling2D((3, 3), strides=(1, 1), padding='same')(x)
+        pool_1x1 = Conv2D(filters_pool, (1, 1), padding='same', activation='relu')(pool)
+        pool_1x1 = BatchNormalization()(pool_1x1)  # Chuẩn hóa batch
 
-        x = Concatenate()([branch1x1, branch3x3, branch5x5, branch_pool])
-        return x
+        # Kết hợp tất cả các đầu ra của các lớp convolution và pooling lại
+        return Concatenate(axis=-1)([conv_1x1, conv_3x3, conv_5x5, pool_1x1])
 
-    x = Conv2D(64, (7, 7), strides=(2, 2), padding='same', activation='relu')(input_layer)
-    x = inception_block(x, 128)
-    x = inception_block(x, 256)
+    # Áp dụng khối Inception đầu tiên
+    x = Conv2D(64, (7, 7), padding='same', strides=(2, 2), activation='relu')(input_layer)
+    x = MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='same')(x)
 
-    x = GlobalAveragePooling2D()(x)
+    # Khối Inception 1
+    x = inception_block(x, 64, 128, 32, 32)
+
+    # Khối Inception 2
+    x = inception_block(x, 128, 256, 64, 64)
+
+    # Khối Inception 3
+    x = inception_block(x, 256, 512, 128, 128)
+
+    # Sử dụng Global Average Pooling để giảm chiều dữ liệu
+    x = AveragePooling2D(pool_size=(8, 8))(x)
+
+    # Flatten và các lớp Fully Connected
+    x = Flatten()(x)
     x = Dense(1024, activation='relu')(x)
-    predictions = Dense(num_classes, activation='softmax')(x)
+    x = Dropout(0.5)(x)  # Lớp Dropout để tránh overfitting
+    x = Dense(1024, activation='relu')(x)
+    x = Dropout(0.5)(x)  # Lớp Dropout để tránh overfitting
+    predictions = Dense(num_classes, activation='softmax')(x)  # Lớp phân loại đầu ra
 
+    # Xây dựng mô hình
     model = Model(inputs=input_layer, outputs=predictions)
-    model.compile(optimizer=Adam(), loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=Adam(), loss='categorical_crossentropy', metrics=['accuracy'])  # Biên dịch mô hình
 
     return model
+
 
 
 # 6. Mô hình DenseNet thủ công (Dense block)
