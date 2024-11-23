@@ -1,25 +1,65 @@
-from gui import start_gui
-from src.model import train_model, load_train_model
 import os
+
+from gui import start_gui
+from tensorflow.keras.models import load_model
 
 
 def main():
-    # Tải mô hình VGG16 đã huấn luyện
-    model = load_train_model()
-
+    model = load_model('../models/vgg16_model.keras')
     # Bắt đầu giao diện người dùng
     start_gui(model)
 
 
 if __name__ == "__main__":
-    model_path = '../models/vgg16_model.keras'
+    # Kiểm tra nếu mô hình chưa tồn tại thì huấn luyện, nếu không thì tải mô hình đã huấn luyện
+    from model import create_vgg16_model, create_generators, train_model
 
-    # Kiểm tra xem mô hình đã được huấn luyện và lưu trữ chưa
-    if not os.path.exists(model_path):
-        train_data_dir = "D:/XuLyAnh/pythonProject/data/train"  # Thư mục chứa dữ liệu huấn luyện
-        validation_data_dir = "D:/XuLyAnh/pythonProject/data/validation"  # Thư mục chứa dữ liệu xác thực
-        train_model(train_data_dir, validation_data_dir, epochs=5)
+    train_data_dir = '../data/train'
+    validation_data_dir = '../data/validation'
+    train_generator, validation_generator = create_generators(train_data_dir, validation_data_dir)
+
+    # Tạo và huấn luyện mô hình VGG16 thủ công
+    vgg16_model_path = '../models/vgg16_model.keras'
+    if not os.path.exists(vgg16_model_path):
+        model_vgg16 = create_vgg16_model(input_shape=(224, 224, 3), num_classes=5)
+        train_model(model_vgg16, train_generator, validation_generator, epochs=10, early_stopping_patience=3)
+        model_vgg16.save(vgg16_model_path)
     else:
-        print(f"Mô hình đã tồn tại tại {model_path}. Bỏ qua bước huấn luyện.")
+        print(f'Model VGG16 already exists at {vgg16_model_path}, skipping training.')
+
+    # cnn_model_path = '../models/cnn_model.keras'
+    # if not os.path.exists(cnn_model_path):
+    #     model_cnn = create_simple_cnn_model(input_shape=(224, 224, 3), num_classes=5)
+    #     train_model(model_cnn, train_generator, validation_generator)
+    #     model_cnn.save(cnn_model_path)
+    # else:
+    #     print(f'Model CNN already exists at {cnn_model_path}, skipping training.')
+    #
+    # # Tạo và huấn luyện mô hình ResNet thủ công
+    # resnet_model_path = '../models/resnet_model.keras'
+    # if not os.path.exists(resnet_model_path):
+    #     model_resnet = create_resnet_model(input_shape=(224, 224, 3), num_classes=5)
+    #     train_model(model_resnet, train_generator, validation_generator)
+    #     model_resnet.save(resnet_model_path)
+    # else:
+    #     print(f'Model ResNet already exists at {resnet_model_path}, skipping training.')
+    #
+    # # Tạo và huấn luyện mô hình Inception thủ công
+    # inception_model_path = '../models/inception_model.keras'
+    # if not os.path.exists(inception_model_path):
+    #     model_inception = create_inception_model(input_shape=(224, 224, 3), num_classes=5)
+    #     train_model(model_inception, train_generator, validation_generator)
+    #     model_inception.save(inception_model_path)
+    # else:
+    #     print(f'Model Inception already exists at {inception_model_path}, skipping training.')
+    #
+    # # Tạo và huấn luyện mô hình DenseNet thủ công
+    # densenet_model_path = '../models/densenet_model.keras'
+    # if not os.path.exists(densenet_model_path):
+    #     model_densenet = create_densenet_model(input_shape=(224, 224, 3), num_classes=5)
+    #     train_model(model_densenet, train_generator, validation_generator)
+    #     model_densenet.save(densenet_model_path)
+    # else:
+    #     print(f'Model DenseNet already exists at {densenet_model_path}, skipping training.')
 
     main()
