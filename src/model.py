@@ -250,26 +250,63 @@ def create_inception_model(input_shape=(224, 224, 3), num_classes=5):
     return model
 
 
-
 # 6. Mô hình DenseNet thủ công (Dense block)
 def create_densenet_model(input_shape=(224, 224, 3), num_classes=5):
     input_layer = Input(shape=input_shape)
 
-    # Dense block
-    def dense_block(x, filters):
-        x1 = Conv2D(filters, (3, 3), padding='same', activation='relu')(x)
-        x2 = Conv2D(filters, (3, 3), padding='same', activation='relu')(x1)
-        return Concatenate()([x, x1, x2])
+    # Hàm tạo Dense Block
+    def dense_block(x, num_layers, growth_rate):
+        for _ in range(num_layers):
+            # Bottleneck Layer (1x1 Convolution để giảm chiều dữ liệu)
+            bn1 = BatchNormalization()(x)
+            relu1 = ReLU()(bn1)
+            bottleneck = Conv2D(4 * growth_rate, (1, 1), padding='same', activation='relu')(relu1)
 
+            # 3x3 Convolution để tăng chiều dữ liệu
+            bn2 = BatchNormalization()(bottleneck)
+            relu2 = ReLU()(bn2)
+            conv = Conv2D(growth_rate, (3, 3), padding='same', activation='relu')(relu2)
+
+            # Nối đầu ra với đầu vào ban đầu (Dense Connection)
+            x = Concatenate()([x, conv])
+        return x
+
+    # Hàm tạo Transition Layer
+    def transition_layer(x, reduction):
+        bn = BatchNormalization()(x)
+        relu = ReLU()(bn)
+        filters = int(x.shape[-1] * reduction)  # Giảm số lượng kênh
+        x = Conv2D(filters, (1, 1), padding='same', activation='relu')(relu)
+        x = AveragePooling2D((2, 2), strides=(2, 2))(x)
+        return x
+
+    # Layer đầu tiên (Stem Layer)
     x = Conv2D(64, (7, 7), strides=(2, 2), padding='same', activation='relu')(input_layer)
-    x = dense_block(x, 64)
-    x = dense_block(x, 128)
+    x = MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='same')(x)
 
+    # Dense Block 1
+    x = dense_block(x, num_layers=6, growth_rate=32)
+    x = transition_layer(x, reduction=0.5)  # Transition Layer 1
+
+    # Dense Block 2
+    x = dense_block(x, num_layers=12, growth_rate=32)
+    x = transition_layer(x, reduction=0.5)  # Transition Layer 2
+
+    # Dense Block 3
+    x = dense_block(x, num_layers=24, growth_rate=32)
+    x = transition_layer(x, reduction=0.5)  # Transition Layer 3
+
+    # Dense Block 4
+    x = dense_block(x, num_layers=16, growth_rate=32)
+
+    # Global Average Pooling và lớp Fully Connected
     x = GlobalAveragePooling2D()(x)
-    x = Dense(1024, activation='relu')(x)
     predictions = Dense(num_classes, activation='softmax')(x)
 
+    # Xây dựng mô hình
     model = Model(inputs=input_layer, outputs=predictions)
+
+    # Biên dịch mô hình
     model.compile(optimizer=Adam(), loss='categorical_crossentropy', metrics=['accuracy'])
 
     return model
