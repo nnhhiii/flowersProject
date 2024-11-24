@@ -1,5 +1,9 @@
 import os
 
+from keras.src.applications.densenet import DenseNet121
+from keras.src.applications.efficientnet import EfficientNetB7
+from keras.src.applications.inception_v3 import InceptionV3
+from keras.src.applications.resnet import ResNet50
 from keras.src.applications.vgg16 import VGG16
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.callbacks import EarlyStopping
@@ -43,7 +47,7 @@ def create_generators(train_data_dir, validation_data_dir, target_size=(224, 224
     return train_generator, validation_generator
 
 # 2. Mô hình CNN thủ công (Simple CNN)
-def create_complex_cnn_model(input_shape=(224, 224, 3), num_classes=5):
+def create_simple_cnn_model(input_shape=(224, 224, 3), num_classes=5):
     input_layer = Input(shape=input_shape)
 
     # Lớp Conv2D đầu tiên với 32 bộ lọc, kích thước 3x3 và hàm kích hoạt ReLU
@@ -192,8 +196,7 @@ def create_resnet_model(input_shape=(224, 224, 3), num_classes=5):
 
     return model
 
-
-
+# 5. Mô hình Inception thủ công (Inception block)
 def create_inception_model(input_shape=(224, 224, 3), num_classes=5):
     input_layer = Input(shape=input_shape)
 
@@ -248,6 +251,7 @@ def create_inception_model(input_shape=(224, 224, 3), num_classes=5):
     model.compile(optimizer=Adam(), loss='categorical_crossentropy', metrics=['accuracy'])  # Biên dịch mô hình
 
     return model
+
 
 
 # 6. Mô hình DenseNet thủ công (Dense block)
@@ -311,10 +315,11 @@ def create_densenet_model(input_shape=(224, 224, 3), num_classes=5):
 
     return model
 
-
 # 7. Hàm huấn luyện mô hình
 def train_model(model, train_generator, validation_generator, epochs=10, early_stopping_patience=3):
-    early_stopping = EarlyStopping(monitor='val_loss', patience=early_stopping_patience, restore_best_weights=True)
+    early_stopping = EarlyStopping(monitor='val_loss',
+                                   patience=early_stopping_patience,
+                                   restore_best_weights=True)
 
     model.fit(
         train_generator,
