@@ -171,31 +171,65 @@ def create_vgg16_model(input_shape=(224, 224, 3), num_classes=5):
 
 
 # 4. Mô hình ResNet thủ công (Residual blocks)
-def create_resnet_model(input_shape=(224, 224, 3), num_classes=5):
+def create_resnet50_model(input_shape=(224, 224, 3), num_classes=5):
     input_layer = Input(shape=input_shape)
 
-    # Residual block
-    def residual_block(x, filters, kernel_size=(3, 3)):
+    # Residual block với BatchNormalization
+    def residual_block(x, filters, strides=(1, 1), is_downsample=False):
         shortcut = x
-        x = Conv2D(filters, kernel_size, padding='same', activation='relu')(x)
-        x = Conv2D(filters, kernel_size, padding='same', activation='relu')(x)
-        x = Add()([x, shortcut])  # Thêm phần residual
+        # Lớp chính
+        x = Conv2D(filters, (1, 1), strides=strides, padding='same')(x)
+        x = BatchNormalization()(x)
+        x = Activation('relu')(x)
+
+        x = Conv2D(filters, (3, 3), padding='same')(x)
+        x = BatchNormalization()(x)
+        x = Activation('relu')(x)
+
+        x = Conv2D(filters * 4, (1, 1), padding='same')(x)
+        x = BatchNormalization()(x)
+
+        # Nếu cần downsample shortcut
+        if is_downsample:
+            shortcut = Conv2D(filters * 4, (1, 1), strides=strides, padding='same')(shortcut)
+            shortcut = BatchNormalization()(shortcut)
+
+        x = Add()([x, shortcut])
+        x = Activation('relu')(x)
         return x
 
-    x = Conv2D(64, (7, 7), padding='same', strides=(2, 2), activation='relu')(input_layer)
-    x = residual_block(x, 64)
-    x = residual_block(x, 128)
-    x = residual_block(x, 256)
+    # Stage 1
+    x = Conv2D(64, (7, 7), strides=(2, 2), padding='same')(input_layer)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = GlobalAveragePooling2D()(x)  # MaxPooling có thể thay bằng AveragePooling nếu cần
 
+    # Stage 2
+    for _ in range(3):
+        x = residual_block(x, 64)
+
+    # Stage 3
+    for _ in range(4):
+        x = residual_block(x, 128, strides=(2, 2) if _ == 0 else (1, 1), is_downsample=(_ == 0))
+
+    # Stage 4
+    for _ in range(6):
+        x = residual_block(x, 256, strides=(2, 2) if _ == 0 else (1, 1), is_downsample=(_ == 0))
+
+    # Stage 5
+    for _ in range(3):
+        x = residual_block(x, 512, strides=(2, 2) if _ == 0 else (1, 1), is_downsample=(_ == 0))
+
+    # Global Average Pooling và Fully Connected
     x = GlobalAveragePooling2D()(x)
     x = Dense(1024, activation='relu')(x)
     predictions = Dense(num_classes, activation='softmax')(x)
 
+    # Xây dựng mô hình
     model = Model(inputs=input_layer, outputs=predictions)
     model.compile(optimizer=Adam(), loss='categorical_crossentropy', metrics=['accuracy'])
 
     return model
-
 # 5. Mô hình Inception thủ công (Inception block)
 def create_inception_model(input_shape=(224, 224, 3), num_classes=5):
     input_layer = Input(shape=input_shape)
