@@ -1,11 +1,11 @@
 import numpy as np
 import tensorflow as tf
 
-gesture_history = []
+flower_history = []
 
-def predict_gesture(model, preprocessed_image):
+def predict_flower(model, preprocessed_image):
     # Ds
-    class_names = ["Hoa cúc", "Hoa bồ công anh", "Hoa hồng", "Hoa hướng dương", "Hoa tulip"]
+    class_names = ["Hoa lan", "Hoa huệ", "Hoa hồng", "Hoa hướng dương", "Hoa sen"]
 
     # Dự đoán cử chỉ từ hình ảnh đã được tiền xử lý
     predictions = model.predict(preprocessed_image)
