@@ -171,7 +171,7 @@ def create_vgg16_model(input_shape=(224, 224, 3), num_classes=5):
 
 
 # 4. Mô hình ResNet thủ công (Residual blocks)
-def create_resnet50_model(input_shape=(224, 224, 3), num_classes=5):
+def create_resnet_model(input_shape=(224, 224, 3), num_classes=5):
     input_layer = Input(shape=input_shape)
 
     # Residual block với BatchNormalization
