@@ -43,32 +43,53 @@ def create_generators(train_data_dir, validation_data_dir, target_size=(224, 224
     return train_generator, validation_generator
 
 # 2. Mô hình CNN thủ công (Simple CNN)
-def create_simple_cnn_model(input_shape=(224, 224, 3), num_classes=5):
-    model = Sequential()
+def create_complex_cnn_model(input_shape=(224, 224, 3), num_classes=5):
+    input_layer = Input(shape=input_shape)
 
-    # Thêm lớp Conv2D đầu tiên với 32 bộ lọc, kích thước 3x3 và hàm kích hoạt ReLU
-    model.add(Conv2D(32, (3, 3), padding='same', activation='relu', input_shape=input_shape))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
+    # Lớp Conv2D đầu tiên với 32 bộ lọc, kích thước 3x3 và hàm kích hoạt ReLU
+    x = Conv2D(32, (3, 3), padding='same', activation='relu')(input_layer)
+    x = BatchNormalization()(x)  # Chuẩn hóa batch
+    x = MaxPooling2D(pool_size=(2, 2))(x)
 
-    # Thêm lớp Conv2D thứ hai với 64 bộ lọc và hàm kích hoạt ReLU
-    model.add(Conv2D(64, (3, 3), padding='same', activation='relu'))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
+    # Lớp Conv2D thứ hai với 64 bộ lọc và hàm kích hoạt ReLU
+    x = Conv2D(64, (3, 3), padding='same', activation='relu')(x)
+    x = BatchNormalization()(x)
+    x = MaxPooling2D(pool_size=(2, 2))(x)
 
-    # Thêm lớp Conv2D thứ ba với 128 bộ lọc và hàm kích hoạt ReLU
-    model.add(Conv2D(128, (3, 3), padding='same', activation='relu'))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
+    # Khối Residual
+    def residual_block(x, filters, kernel_size=(3, 3)):
+        shortcut = x
+        x = Conv2D(filters, kernel_size, padding='same', activation='relu')(x)
+        x = BatchNormalization()(x)
+        x = Conv2D(filters, kernel_size, padding='same', activation='relu')(x)
+        x = BatchNormalization()(x)
+        x = Add()([x, shortcut])  # Thêm phần residual
+        return x
 
-    # Chuyển từ 3D (ảnh) sang 1D (vector) để vào lớp Dense
-    model.add(Flatten())
+    # Áp dụng khối Residual
+    x = residual_block(x, 128)
+    x = residual_block(x, 256)
 
-    # Lớp Dense đầu tiên với 512 nơ-ron và hàm kích hoạt ReLU
-    model.add(Dense(512, activation='relu'))
+    # Lớp Conv2D với số lượng bộ lọc lớn hơn và Pooling
+    x = Conv2D(512, (3, 3), padding='same', activation='relu')(x)
+    x = BatchNormalization()(x)
+    x = MaxPooling2D(pool_size=(2, 2))(x)
 
     # Lớp Dropout để tránh overfitting
-    model.add(Dropout(0.5))
+    x = Dropout(0.5)(x)
 
-    # Lớp Dense cuối cùng với số lượng lớp đầu ra tương ứng với số lớp phân loại (num_classes)
-    model.add(Dense(num_classes, activation='softmax'))
+    # Sử dụng Global Average Pooling để giảm chiều dữ liệu
+    x = GlobalAveragePooling2D()(x)
+
+    # Lớp Fully Connected với 1024 nơ-ron và hàm kích hoạt ReLU
+    x = Dense(1024, activation='relu')(x)
+    x = Dropout(0.5)(x)  # Lớp Dropout để tránh overfitting
+
+    # Lớp phân loại với số lượng lớp đầu ra (num_classes)
+    predictions = Dense(num_classes, activation='softmax')(x)
+
+    # Xây dựng mô hình
+    model = Model(inputs=input_layer, outputs=predictions)
 
     # Biên dịch mô hình
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
