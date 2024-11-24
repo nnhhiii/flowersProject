@@ -1,85 +1,72 @@
 import os
-from tkinter import filedialog
-import cv2
-from PIL import Image
-import customtkinter as ctk
-from preprocess import preprocess_image
-from predict import predict_flower, flower_history
 
-def start_gui(models):
-    root = ctk.CTk()
-    root.configure(fg_color="white")
-    root.title("Nhận dạng cử chỉ tay")
+from gui import start_gui
+from tensorflow.keras.models import load_model
 
-    flower = ctk.CTkLabel(root, text="", font=("Verdana", 18, "bold"), text_color="#58CC01")
-    flower.grid(row=1, column=4, columnspan=3, sticky="e", padx=10)
 
-    result_label = ctk.CTkLabel(root, text="")
-    result_label.grid(row=8, column=4, columnspan=3)
+def main():
+    models = {
+        "vgg16": load_model('../models/vgg16_model.keras'),
+        "resnet": load_model('../models/resnet_model.keras'),
+        "inception": load_model('../models/inception_model.keras'),
+        "densenet": load_model('../models/densenet_model.keras'),
+        "cnn": load_model('../models/cnn_model.keras'),
+    }
+    # Bắt đầu giao diện người dùng
+    start_gui(models)
 
-    title = ctk.CTkLabel(root, text="NHẬN DẠNG HOA", font=("Verdana", 23, "bold"), text_color="#0E3469")
-    title.grid(row=0, column=1, columnspan=6, pady=15)
 
-    label = ctk.CTkLabel(root, text="")
-    label.grid(row=8, column=2)
+if __name__ == "__main__":
+    # Kiểm tra nếu mô hình chưa tồn tại thì huấn luyện, nếu không thì tải mô hình đã huấn luyện
+    from model import *
 
-    history_label = ctk.CTkLabel(root, text="", wraplength=300, justify="left")
-    history_label.grid(row=10, column=4, columnspan=3)
+    train_data_dir = '../data/train'
+    validation_data_dir = '../data/validation'
+    train_generator, validation_generator = create_generators(train_data_dir, validation_data_dir)
 
-    recognize_btn = ctk.CTkButton(root, text="Nhận diện", text_color="white", corner_radius=50, width=100, height=50, fg_color="#FF86D0", hover_color="#CC6BA7")
-    recognize_btn.grid_forget()
+    # Tạo và huấn luyện mô hình VGG16 thủ công
+    vgg16_model_path = '../models/vgg16_model.keras'
+    if not os.path.exists(vgg16_model_path):
+        model_vgg16 = create_vgg16_model(input_shape=(224, 224, 3), num_classes=5)
+        train_model(model_vgg16, train_generator, validation_generator, epochs=10, early_stopping_patience=3)
+        model_vgg16.save(vgg16_model_path)
+    else:
+        print(f'Model VGG16 already exists at {vgg16_model_path}, skipping training.')
 
-    image_label = ctk.CTkLabel(root, text="")
 
-    def show_result(predicted_class, confidence):
-        if confidence > 0.5:
-            flower.configure(text=predicted_class)
-            result_label.configure(
-                text=f"Cử chỉ được nhận diện: {predicted_class}     Độ chính xác: {confidence:.2f}")
-            flower_history.append((predicted_class, confidence))
-            # Hiển thị lịch sử, bao gồm cả confidence
-            history_label.configure(text="Lịch sử nhận diện: " + ", "
-                                    .join([f"{cls} ({conf:.2f})" for cls, conf in flower_history]))
-        else:
-            flower.configure(text="")
-            result_label.configure(text="Không nhận diện được cử chỉ. Vui lòng thực hiện lại.")
+    # Tạo và huấn luyện mô hình ResNet thủ công
+    resnet_model_path = '../models/resnet_model.keras'
+    if not os.path.exists(resnet_model_path):
+        model_resnet = create_resnet_model(input_shape=(224, 224, 3), num_classes=5)
+        train_model(model_resnet, train_generator, validation_generator, epochs=10, early_stopping_patience=3)
+        model_resnet.save(resnet_model_path)
+    else:
+        print(f'Model ResNet already exists at {resnet_model_path}, skipping training.')
 
-    def upload_media():
-        file_path = filedialog.askopenfilename(filetypes=[("Image files", "*.jpg *.jpeg *.png")])
-        if not file_path:
-            return
+    # Tạo và huấn luyện mô hình Inception thủ công
+    inception_model_path = '../models/inception_model.keras'
+    if not os.path.exists(inception_model_path):
+        model_inception = create_inception_model(input_shape=(224, 224, 3), num_classes=5)
+        train_model(model_inception, train_generator, validation_generator)
+        model_inception.save(inception_model_path)
+    else:
+        print(f'Model Inception already exists at {inception_model_path}, skipping training.')
 
-        _, ext = os.path.splitext(file_path)
-        ext = ext.lower()
+    # Tạo và huấn luyện mô hình DenseNet thủ công
+    densenet_model_path = '../models/densenet_model.keras'
+    if not os.path.exists(densenet_model_path):
+        model_densenet = create_densenet_model(input_shape=(224, 224, 3), num_classes=5)
+        train_model(model_densenet, train_generator, validation_generator)
+        model_densenet.save(densenet_model_path)
+    else:
+        print(f'Model DenseNet already exists at {densenet_model_path}, skipping training.')
 
-        if ext in [".jpg", ".jpeg", ".png"]:
-            img = Image.open(file_path)
-            img_tk = ctk.CTkImage(size=(400, 300), light_image=img)
+    cnn_model_path = '../models/cnn_model.keras'
+    if not os.path.exists(cnn_model_path):
+        model_cnn = create_simple_cnn_model(input_shape=(224, 224, 3), num_classes=5)
+        train_model(model_cnn, train_generator, validation_generator)
+        model_cnn.save(cnn_model_path)
+    else:
+        print(f'Model CNN already exists at {cnn_model_path}, skipping training.')
 
-            # Xóa ảnh cũ nếu có trước khi hiển thị ảnh mới
-            image_label.grid_forget()
-            image_label.configure(image=img_tk)
-            image_label.image = img_tk
-            image_label.grid(row=2, column=4, columnspan=3, rowspan=6, pady=15, padx=15)
-
-            def recognize_flower(model):
-                img_cv = cv2.imread(file_path)
-                preprocessed_img = preprocess_image(img_cv)
-                predicted_class, confidence = predict_flower(model, preprocessed_img)
-                show_result(predicted_class, confidence)
-
-            recognize_btn.configure(command=lambda: recognize_flower(models[selected_model.get()]))
-            recognize_btn.grid(row=9, column=5)
-
-    upload_btn = ctk.CTkButton(root, text="Tải ảnh", font=("Arial", 15, "bold"), text_color="white",
-                               corner_radius=10, width=180, height=60, fg_color="#4EA3E2",
-                               hover_color="#1DC1FF", command=upload_media)
-    upload_btn.grid(row=2, column=0, rowspan=2, padx=10, pady=10)
-
-    # Dropdown menu to select model
-    selected_model = ctk.StringVar(value="vgg16")  # Default model
-
-    model_selection_menu = ctk.CTkOptionMenu(root, values=["vgg16", "resnet","inception", "densenet", "cnn"],
-                                             variable=selected_model, width=200)
-    model_selection_menu.grid(row=4, column=0, padx=20, pady=10)
-    root.mainloop()
+    main()
